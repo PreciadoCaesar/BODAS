@@ -143,33 +143,33 @@
             </div>
         </section>
     </div>
-<script>
-    const SUPABASE_URL = 'https://ksuladbzypdvefhjkcbf.supabase.co';
-    const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI';
+    <script>
+        const SUPABASE_URL = 'https://ksuladbzypdvefhjkcbf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzdWxhZGJ6eXBkdmVmaGprY2JmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTYzMDcsImV4cCI6MjA4NjYzMjMwN30.hH1yHwd-lN1zKw0x9CF7dmPnD1Z3vAniQArKITd65mM';
 
-    // ✅ Crear cliente correctamente
-    const supabaseClient = supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-    );
+        // ✅ Crear cliente correctamente
+        const supabaseClient = supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        );
 
-    let servicios = [];
+        let servicios = [];
 
-    // Inicializar
-    async function init() {
-        await initAuth();
-        await loadServicios();
-        await loadFacturas();
-        setInterval(loadFacturas, 3000);
-    }
+        // Inicializar
+        async function init() {
+            await initAuth();
+            await loadServicios();
+            await loadFacturas();
+            setInterval(loadFacturas, 3000);
+        }
 
-    // Auth
-    async function initAuth() {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const authDiv = document.getElementById('auth-status');
+        // Auth
+        async function initAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const authDiv = document.getElementById('auth-status');
 
-        if (session) {
-            authDiv.innerHTML = `
+            if (session) {
+                authDiv.innerHTML = `
                 <span class="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
                     <i class="fas fa-check-circle"></i> Conectado
                 </span>
@@ -177,122 +177,122 @@
                     <i class="fas fa-sign-out-alt mr-1"></i>Salir
                 </button>
             `;
-        } else {
-            authDiv.innerHTML = `
+            } else {
+                authDiv.innerHTML = `
                 <button onclick="login()" class="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg">
                     <i class="fas fa-lock mr-2"></i>Iniciar Sesión
                 </button>
             `;
-        }
-    }
-
-    window.login = async function () {
-        const email = prompt('Email:');
-        if (email) {
-            const { error } = await supabaseClient.auth.signInWithOtp({ email });
-            if (error) {
-                alert(error.message);
-            } else {
-                alert('✅ Revisa tu email');
             }
         }
-    }
 
-    window.logout = async function () {
-        await supabaseClient.auth.signOut();
-        initAuth();
-    }
-
-    // Servicios
-    async function loadServicios() {
-        const { data, error } = await supabaseClient
-            .from('servicios')
-            .select('*');
-
-        if (error) {
-            console.error(error);
-            alert(error.message);
-            return;
+        window.login = async function () {
+            const email = prompt('Email:');
+            if (email) {
+                const { error } = await supabaseClient.auth.signInWithOtp({ email });
+                if (error) {
+                    alert(error.message);
+                } else {
+                    alert('✅ Revisa tu email');
+                }
+            }
         }
 
-        servicios = data || [];
+        window.logout = async function () {
+            await supabaseClient.auth.signOut();
+            initAuth();
+        }
 
-        const select = document.getElementById('servicio-select');
-        select.innerHTML =
-            '<option value="">📍 Selecciona un servicio</option>' +
-            servicios.map(s =>
-                `<option value="${s.id}" data-precio="${s.precio}">
+        // Servicios
+        async function loadServicios() {
+            const { data, error } = await supabaseClient
+                .from('servicios')
+                .select('*');
+
+            if (error) {
+                console.error(error);
+                alert(error.message);
+                return;
+            }
+
+            servicios = data || [];
+
+            const select = document.getElementById('servicio-select');
+            select.innerHTML =
+                '<option value="">📍 Selecciona un servicio</option>' +
+                servicios.map(s =>
+                    `<option value="${s.id}" data-precio="${s.precio}">
                     ${s.nombre} (S/ ${s.precio})
                 </option>`
-            ).join('');
-    }
+                ).join('');
+        }
 
-    // Subtotal
-    document.getElementById('servicio-select')
-        .addEventListener('change', updateSubtotal);
+        // Subtotal
+        document.getElementById('servicio-select')
+            .addEventListener('change', updateSubtotal);
 
-    document.getElementById('cantidad')
-        .addEventListener('input', updateSubtotal);
+        document.getElementById('cantidad')
+            .addEventListener('input', updateSubtotal);
 
-    function updateSubtotal() {
-        const servicio = document.getElementById('servicio-select').selectedOptions[0];
-        const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
-        const precio = parseFloat(servicio?.dataset.precio) || 0;
-        const subtotal = (precio * cantidad).toFixed(2);
+        function updateSubtotal() {
+            const servicio = document.getElementById('servicio-select').selectedOptions[0];
+            const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
+            const precio = parseFloat(servicio?.dataset.precio) || 0;
+            const subtotal = (precio * cantidad).toFixed(2);
 
-        document.getElementById('subtotal-info').innerHTML = `
+            document.getElementById('subtotal-info').innerHTML = `
             <i class="fas fa-calculator text-green-500 mr-2"></i>
             <span class="font-bold text-xl text-green-700">
                 Subtotal: S/ ${subtotal}
             </span>
         `;
 
-        document.getElementById('subtotal-info').dataset.subtotal = subtotal;
-    }
-
-    // Guardar factura
-    document.getElementById('factura-form')
-        .addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const data = {
-                servicio_id: document.getElementById('servicio-select').value,
-                cantidad: parseInt(document.getElementById('cantidad').value),
-                total: parseFloat(
-                    document.getElementById('total-manual').value ||
-                    document.getElementById('subtotal-info').dataset.subtotal
-                )
-            };
-
-            const { error } = await supabaseClient
-                .from('facturas')
-                .insert([data]);
-
-            if (error) {
-                alert('❌ ' + error.message);
-            } else {
-                alert('✅ ¡Factura guardada!');
-                e.target.reset();
-                updateSubtotal();
-                loadFacturas();
-            }
-        });
-
-    // Facturas
-    async function loadFacturas() {
-        const { data: facts, error } = await supabaseClient
-            .from('facturas')
-            .select('*, servicios(nombre, precio)')
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
-            console.error(error);
-            return;
+            document.getElementById('subtotal-info').dataset.subtotal = subtotal;
         }
 
-        document.getElementById('facturas-table').innerHTML =
-            facts?.map(f => `
+        // Guardar factura
+        document.getElementById('factura-form')
+            .addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const data = {
+                    servicio_id: document.getElementById('servicio-select').value,
+                    cantidad: parseInt(document.getElementById('cantidad').value),
+                    total: parseFloat(
+                        document.getElementById('total-manual').value ||
+                        document.getElementById('subtotal-info').dataset.subtotal
+                    )
+                };
+
+                const { error } = await supabaseClient
+                    .from('facturas')
+                    .insert([data]);
+
+                if (error) {
+                    alert('❌ ' + error.message);
+                } else {
+                    alert('✅ ¡Factura guardada!');
+                    e.target.reset();
+                    updateSubtotal();
+                    loadFacturas();
+                }
+            });
+
+        // Facturas
+        async function loadFacturas() {
+            const { data: facts, error } = await supabaseClient
+                .from('facturas')
+                .select('*, servicios(nombre, precio)')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            document.getElementById('facturas-table').innerHTML =
+                facts?.map(f => `
                 <tr class="hover:bg-rose-50/50 transition-all group">
                     <td class="p-6 font-medium text-gray-900">
                         ${f.servicios?.nombre || ''}
@@ -311,33 +311,33 @@
                     </td>
                 </tr>
             `).join('') ||
-            '<tr><td colspan="5" class="p-12 text-center text-gray-500">Sin facturas aún</td></tr>';
+                '<tr><td colspan="5" class="p-12 text-center text-gray-500">Sin facturas aún</td></tr>';
 
-        const hoy = facts?.filter(f =>
-            new Date(f.created_at).toDateString() === new Date().toDateString()
-        ).reduce((sum, f) => sum + parseFloat(f.total), 0) || 0;
+            const hoy = facts?.filter(f =>
+                new Date(f.created_at).toDateString() === new Date().toDateString()
+            ).reduce((sum, f) => sum + parseFloat(f.total), 0) || 0;
 
-        const semana = facts?.filter(f => {
-            const fecha = new Date(f.created_at);
-            return (new Date() - fecha) <= 7 * 24 * 60 * 60 * 1000;
-        }).reduce((sum, f) => sum + parseFloat(f.total), 0) || 0;
+            const semana = facts?.filter(f => {
+                const fecha = new Date(f.created_at);
+                return (new Date() - fecha) <= 7 * 24 * 60 * 60 * 1000;
+            }).reduce((sum, f) => sum + parseFloat(f.total), 0) || 0;
 
-        const total = facts?.reduce((sum, f) =>
-            sum + parseFloat(f.total), 0) || 0;
+            const total = facts?.reduce((sum, f) =>
+                sum + parseFloat(f.total), 0) || 0;
 
-        document.getElementById('total-hoy').textContent = `S/ ${hoy.toFixed(0)}`;
-        document.getElementById('total-semana').textContent = `S/ ${semana.toFixed(0)}`;
-        document.getElementById('total-general').textContent = `S/ ${total.toFixed(0)}`;
-    }
+            document.getElementById('total-hoy').textContent = `S/ ${hoy.toFixed(0)}`;
+            document.getElementById('total-semana').textContent = `S/ ${semana.toFixed(0)}`;
+            document.getElementById('total-general').textContent = `S/ ${total.toFixed(0)}`;
+        }
 
-    supabaseClient.auth.onAuthStateChange(() => {
-        initAuth();
-        loadFacturas();
-    });
+        supabaseClient.auth.onAuthStateChange(() => {
+            initAuth();
+            loadFacturas();
+        });
 
-    // INICIAR
-    init();
-</script>
+        // INICIAR
+        init();
+    </script>
 
 </body>
 
