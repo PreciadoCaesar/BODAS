@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Si por Siempre - Dashboard Cuentas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; }
+    .logo { max-height: 60px; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-pink-50 min-h-screen p-4">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <header class="bg-white shadow-lg rounded-xl p-6 mb-8 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <img src="logo.png" alt="Si por Siempre Logo" class="logo"> <!-- Sube tu logo aquí -->
+        <h1 class="text-3xl font-bold text-gray-800">Si por Siempre</h1>
+        <p class="text-lg text-gray-600">Dashboard Matrimonios Simbólicos</p>
+      </div>
+      <div id="auth-status" class="space-x-2">
+        <!-- Botones login/logout aparecerán aquí -->
+      </div>
+    </header>
+
+    <!-- Formulario Agregar Cliente -->
+    <section class="bg-white shadow-xl rounded-xl p-8 mb-8">
+      <h2 class="text-2xl font-bold mb-6">Agregar Cliente</h2>
+      <form id="cliente-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input type="text" id="nombre" placeholder="Nombre pareja" class="p-3 border rounded-lg" required>
+        <input type="email" id="email" placeholder="Email">
+        <input type="tel" id="telefono" placeholder="Teléfono">
+        <input type="date" id="fecha" class="p-3 border rounded-lg">
+        <button type="submit" class="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 col-span-1 md:col-span-4">Agregar</button>
+      </form>
+    </section>
+
+    <!-- Formulario Agregar Factura -->
+    <section class="bg-white shadow-xl rounded-xl p-8 mb-8">
+      <h2 class="text-2xl font-bold mb-6">Nueva Factura</h2>
+      <form id="factura-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <select id="cliente-select" class="p-3 border rounded-lg" required>
+          <option value="">Seleccionar cliente</option>
+        </select>
+        <select id="servicio-select" class="p-3 border rounded-lg" required>
+          <option value="">Seleccionar servicio</option>
+        </select>
+        <input type="number" id="cantidad" value="1" min="1" class="p-3 border rounded-lg">
+        <div class="flex items-end space-x-2">
+          <input type="number" id="total-manual" placeholder="Total manual (opcional)" class="p-3 border rounded-lg flex-1" step="0.01">
+          <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700">Guardar Factura</button>
+        </div>
+      </form>
+      <p id="subtotal-info" class="mt-2 text-sm text-gray-600"></p>
+    </section>
+
+    <!-- Tabla Facturas y Totales -->
+    <section class="bg-white shadow-xl rounded-xl p-8">
+      <h2 class="text-2xl font-bold mb-6">Facturas Recientes</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full table-auto border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="p-4 text-left">Cliente</th>
+              <th class="p-4 text-left">Servicio</th>
+              <th class="p-4 text-right">Cantidad</th>
+              <th class="p-4 text-right">Subtotal</th>
+              <th class="p-4 text-right">Total</th>
+              <th class="p-4 text-right">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="facturas-table"></tbody>
+        </table>
+      </div>
+      <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+        <h3 class="font-bold text-xl">Total Hoy: <span id="total-hoy" class="text-2xl text-green-600">S/ 0.00</span></h3>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Reemplaza con tus claves de Supabase
+    const SUPABASE_URL = 'https://tu-proyecto.supabase.co';
+    const SUPABASE_ANON_KEY = 'tu-anon-key-aqui';
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let clientes = [];
+    let servicios = [];
+
+    // Auth
+    async function initAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authDiv = document.getElementById('auth-status');
+      if (session) {
+        authDiv.innerHTML = `<span class="text-green-600">¡Hola, ${session.user.email}!</span> <button id="logout" class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600">Salir</button>`;
+        document.getElementById('logout').addEventListener('click', () => supabase.auth.signOut());
+      } else {
+        authDiv.innerHTML = `<button id="login" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700">Iniciar Sesión</button>`;
+        document.getElementById('login').addEventListener('click', login);
+      }
+      supabase.auth.onAuthStateChange((event, session) => location.reload());
+    }
+
+    async function login() {
+      await supabase.auth.signInWithOtp({ email: prompt('Email:') });
+      alert('Revisa tu email para confirmar');
+    }
+
+    // Cargar datos
+    async function loadData() {
+      const { data: clts } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
+      clientes = clts || [];
+      const { data: srvs } = await supabase.from('servicios').select('*');
+      servicios = srvs || [];
+
+      // Llenar selects
+      const clienteSelect = document.getElementById('cliente-select');
+      clienteSelect.innerHTML = '<option value="">Seleccionar cliente</option>' + clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+
+      const servicioSelect = document.getElementById('servicio-select');
+      servicioSelect.innerHTML = '<option value="">Seleccionar servicio</option>' + servicios.map(s => `<option value="${s.id}" data-precio="${s.precio}">${s.nombre} (S/ ${s.precio})</option>`).join('');
+
+      loadFacturas();
+    }
+
+    // Event listeners
+    document.getElementById('cliente-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        nombre: document.getElementById('nombre').value,
+        email: document.getElementById('email').value,
+        telefono: document.getElementById('telefono').value,
+        fecha_matrimonio: document.getElementById('fecha').value
+      };
+      await supabase.from('clientes').insert([data]);
+      alert('Cliente agregado');
+      loadData();
+    });
+
+    document.getElementById('factura-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const total = document.getElementById('total-manual').value || document.getElementById('subtotal-info').dataset.subtotal;
+      const data = {
+        cliente_id: document.getElementById('cliente-select').value,
+        servicio_id: document.getElementById('servicio-select').value,
+        cantidad: parseInt(document.getElementById('cantidad').value),
+        total: parseFloat(total)
+      };
+      await supabase.from('facturas').insert([data]);
+      alert('Factura guardada');
+      loadData();
+    });
+
+    // Subtotal dinámico
+    document.getElementById('servicio-select').addEventListener('change', (e) => {
+      const precio = e.target.selectedOptions[0]?.dataset.precio;
+      const cant = document.getElementById('cantidad').value;
+      const subtotal = (precio * cant).toFixed(2);
+      document.getElementById('subtotal-info').textContent = `Subtotal: S/ ${subtotal}`;
+      document.getElementById('subtotal-info').dataset.subtotal = subtotal;
+    });
+    document.getElementById('cantidad').addEventListener('input', () => document.getElementById('servicio-select').dispatchEvent(new Event('change')));
+
+   async function loadFacturas() {
+  const { data: facts } = await supabase.from('facturas').select(`
+    *,
+    clientes (nombre),
+    servicios (nombre, precio)
+  `).order('fecha', { ascending: false });
+  
+  const tbody = document.getElementById('facturas-table');
+  tbody.innerHTML = facts?.map(f => `
+    <tr class="border-t hover:bg-gray-50">
+      <td class="p-4">${f.clientes.nombre}</td>
+      <td class="p-4">${f.servicios.nombre}</td>
+      <td class="p-4 text-right">${f.cantidad}</td>
+      <td class="p-4 text-right">S/ ${parseFloat(f.subtotal || 0).toFixed(2)}</td>
+      <td class="p-4 text-right font-bold">S/ ${parseFloat(f.total).toFixed(2)}</td>
+      <td class="p-4 text-right">${new Date(f.fecha).toLocaleDateString('es-PE')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="p-8 text-center text-gray-500">Sin facturas</td></tr>';
+
+  const hoy = facts?.filter(f => new Date(f.fecha).toDateString() === new Date().toDateString())
+    ?.reduce((sum, f) => sum + parseFloat(f.total), 0) || 0;
+  document.getElementById('total-hoy').textContent = `S/ ${hoy.toFixed(2)}`;
+}
+
+
+    // Init
+    initAuth();
+    loadData();
+    setInterval(loadFacturas, 5000);  // Actualiza cada 5s
+  </script>
+</body>
+</html>
